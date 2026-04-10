@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube Downloader</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Local MVP</p>
+          <h1 id="page-title">YouTube 링크 다운로드</h1>
+          <p class="scope">링크를 붙여 넣고 미리보기 또는 다운로드를 실행하세요.</p>
+        </div>
+        <div id="health" class="health">환경 확인 중</div>
+      </section>
+
+      <section class="panel" aria-label="다운로드 요청">
+        <form id="download-form" class="download-form">
+          <label for="url">YouTube URL</label>
+          <div class="form-row">
+            <input id="url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=..." required />
+            <button type="button" id="metadata-button" class="secondary">미리보기</button>
+            <button type="submit">다운로드</button>
+          </div>
+          <fieldset class="quality-options" aria-label="다운로드 품질">
+            <legend>다운로드 품질</legend>
+            <label>
+              <input type="radio" name="quality" value="compatible" checked />
+              <span>호환성 우선 MP4</span>
+            </label>
+            <label>
+              <input type="radio" name="quality" value="best" />
+              <span>최고화질</span>
+            </label>
+          </fieldset>
+          <div class="quick-actions">
+            <button type="button" id="sample-button" class="link-button">테스트 URL 입력</button>
+            <span>권한이 있는 콘텐츠만 처리하세요.</span>
+          </div>
+          <p id="message" class="message" role="status"></p>
+        </form>
+      </section>
+
+      <section id="metadata" class="metadata hidden" aria-live="polite"></section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <h2>현재 세션 작업</h2>
+          <button id="refresh-button" class="secondary" type="button">새로고침</button>
+        </div>
+        <div id="jobs" class="jobs" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
