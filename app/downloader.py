@@ -21,6 +21,7 @@ COMPATIBLE_MP4_FORMAT = (
     "bv*+ba/b"
 )
 BEST_FORMAT = "bv*+ba/b"
+YOUTUBE_PLAYER_CLIENTS: tuple[Optional[str], ...] = ("android_vr", None)
 
 
 class DownloaderUnavailableError(RuntimeError):
@@ -49,6 +50,45 @@ def _load_ytdlp():
     return YoutubeDL
 
 
+def _with_youtube_player_client(options: dict[str, Any], client: Optional[str]) -> dict[str, Any]:
+    configured = dict(options)
+    if client is None:
+        return configured
+
+    extractor_args = dict(configured.get("extractor_args") or {})
+    youtube_args = dict(extractor_args.get("youtube") or {})
+    youtube_args["player_client"] = [client]
+    extractor_args["youtube"] = youtube_args
+    configured["extractor_args"] = extractor_args
+    return configured
+
+
+def _extract_info(
+    url: str,
+    *,
+    options: dict[str, Any],
+    download: bool,
+) -> tuple[Any, dict[str, Any]]:
+    YoutubeDL = _load_ytdlp()
+    last_error: Optional[Exception] = None
+
+    # Prefer android_vr since it currently avoids the YouTube 403s we see with
+    # the default web client, but keep the default path as a fallback.
+    for client in YOUTUBE_PLAYER_CLIENTS:
+        configured = _with_youtube_player_client(options, client)
+        with YoutubeDL(configured) as ydl:
+            try:
+                info = ydl.extract_info(url, download=download)
+            except Exception as exc:
+                last_error = exc
+                continue
+            return info, ydl.sanitize_info(info)
+
+    if last_error is None:
+        raise DownloaderUnavailableError("yt-dlp에서 다운로드 정보를 불러오지 못했습니다.")
+    raise last_error
+
+
 def _format_summary(info: dict[str, Any]) -> list[dict[str, Any]]:
     formats = []
     for item in info.get("formats") or []:
@@ -66,7 +106,6 @@ def _format_summary(info: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def extract_metadata(url: str) -> dict[str, Any]:
-    YoutubeDL = _load_ytdlp()
     options = {
         "quiet": True,
         "no_warnings": True,
@@ -75,9 +114,7 @@ def extract_metadata(url: str) -> dict[str, Any]:
         "skip_download": True,
         "noplaylist": not is_playlist_url(url),
     }
-    with YoutubeDL(options) as ydl:
-        info = ydl.extract_info(url, download=False)
-        sanitized = ydl.sanitize_info(info)
+    _, sanitized = _extract_info(url, options=options, download=False)
 
     entries = sanitized.get("entries") or []
     return {
@@ -141,7 +178,6 @@ def download_url(
     quality: str = QUALITY_COMPATIBLE,
     progress_callback: Optional[ProgressCallback] = None,
 ) -> dict[str, Any]:
-    YoutubeDL = _load_ytdlp()
     settings.ensure_runtime_dirs()
     if quality not in QUALITY_CHOICES:
         quality = QUALITY_COMPATIBLE
@@ -167,10 +203,8 @@ def download_url(
     if quality == QUALITY_COMPATIBLE:
         options["merge_output_format"] = "mp4"
 
-    with YoutubeDL(options) as ydl:
-        info = ydl.extract_info(url, download=True)
-        output_path = _find_output_path(info)
-        sanitized = ydl.sanitize_info(info)
+    info, sanitized = _extract_info(url, options=options, download=True)
+    output_path = _find_output_path(info)
 
     return {
         "title": sanitized.get("title"),
